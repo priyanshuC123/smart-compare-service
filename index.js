@@ -9,7 +9,7 @@ const app = express();
 const port = 8000;
 
 // Set up CORS
-const allowedOrigins = ['http://localhost:3000','https://smart-compare-wflf.vercel.app'];
+const allowedOrigins = ['http://localhost:3000', 'https://smart-compare-wflf.vercel.app'];
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
@@ -34,7 +34,12 @@ app.post('/scrape', async (req, res) => {
     }
 
     try {
-        const { data } = await axios.get(url);
+        // Adding User-Agent header to mimic a browser request
+        const { data } = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+            }
+        });
         const $ = cheerio.load(data);
 
         const titleElement = $('span#productTitle').text().trim();
@@ -54,8 +59,8 @@ app.post('/scrape', async (req, res) => {
             features: features
         });
     } catch (error) {
-        console.error('Error while scraping:', error.message);
-        res.status(500).json({ error: 'An error occurred while scraping the data' });
+        console.error('Error while scraping:', error.stack); // Log full error stack
+        res.status(500).json({ error: error.message || 'An error occurred while scraping the data' });
     }
 });
 
@@ -71,20 +76,20 @@ app.post('/compare', async (req, res) => {
     }
 
     try {
-        // Correctly call the Gemini model using generateContent with the prompt
+        // Initialize the model for generative AI
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        // Generate text using the direct prompt
-        const result = await model.generateContent(prompt);
+        // Generate content based on the provided prompt
+        const result = await model.generateContent({ prompt });
 
-        // Extract the generated text
+        // Extract the generated text from the result
         const generatedText = result.response.text();
 
-        // Return the result
+        // Return the generated comparison text
         res.json({ comparison: generatedText });
     } catch (error) {
-        console.error('Error generating comparison:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to generate comparison' });
+        console.error('Error generating comparison:', error.stack); // Log full error stack
+        res.status(500).json({ error: error.message || 'Failed to generate comparison' });
     }
 });
 
